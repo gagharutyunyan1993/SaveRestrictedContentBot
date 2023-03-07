@@ -1,0 +1,7 @@
+#Github.com-Vasusen-code
+
+https://github.com/vasusen-code/Telethon/archive/refs/tags/v1.24.0.zip
+https://github.com/gagharutyunyan1993/ethon/archive/refs/tags/v1.3.8.zip
+cryptg
+tgcrypto
+pyrogram==1.4.16
