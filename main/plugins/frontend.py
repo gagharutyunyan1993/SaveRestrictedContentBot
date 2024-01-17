@@ -46,4 +46,3 @@ async def clone(event):
     except Exception as e:
         print(e)
         await Drone.send_message(event.sender_id, f"An error occurred during cloning of `{link}`\n\n**Error:** {str(e)}")
-    

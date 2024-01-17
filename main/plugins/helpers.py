@@ -70,4 +70,4 @@ async def screenshot(video, duration, sender):
     if os.path.isfile(out):
         return out
     else:
-        None       
+        None

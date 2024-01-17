@@ -110,4 +110,3 @@ async def run_batch(userbot, client, sender, link, _range):
         protection = await client.send_message(sender, f"Sleeping for `{timer}` seconds to avoid Floodwaits and Protect account!")
         await asyncio.sleep(timer)
         await protection.delete()
-            
