@@ -10,7 +10,7 @@ A stable telegram bot to get restricted messages with custom thumbnail support ,
 - supports text and webpage media messages
 - Faster speed
 - Forcesubscribe available 
-- `/batch` - (For owner only) Use this command to save upto 100 files from a pvt or public restricted channel at once.
+- `/batch` - (For owner only) Use this command to save upto 1000 files from a pvt or public restricted channel at once.
 - Time delay is added to avoid FloodWait and keep user account safe. 
 
 # Variables
