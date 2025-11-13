@@ -33,7 +33,7 @@ async def get_msg(userbot, client, bot, sender, edit_id, msg_link, i):
         msg_link = msg_link.split("?single")[0]
     msg_id = int(msg_link.split("/")[-1]) + int(i)
     height, width, duration, thumb_path = 90, 90, 0, None
-    if 't.me/c/' or 't.me/b/' in msg_link:
+    if 't.me/c/' in msg_link or 't.me/b/' in msg_link:
         if 't.me/b/' in msg_link:
             chat = str(msg_link.split("/")[-2])
         else:
@@ -142,8 +142,14 @@ async def get_msg(userbot, client, bot, sender, edit_id, msg_link, i):
             except Exception:
                 pass
             await edit.delete()
-        except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid):
-            await client.edit_message_text(sender, edit_id, "Have you joined the channel?")
+        except ChannelBanned:
+            await client.edit_message_text(sender, edit_id, "❌ **Error:** The userbot account is banned from this channel.\n\nPlease unban the account or use a different account.")
+            return
+        except (ChannelInvalid, ChatIdInvalid, ChatInvalid):
+            await client.edit_message_text(sender, edit_id, "❌ **Error:** Invalid channel or chat ID.\n\nPlease check the link and try again.")
+            return
+        except ChannelPrivate:
+            await client.edit_message_text(sender, edit_id, "❌ **Error:** This is a private channel.\n\n**Solution:**\n• Make sure the userbot account has joined this channel\n• Check if the channel link is correct\n• Verify that the SESSION is valid")
             return
         except PeerIdInvalid:
             chat = msg_link.split("/")[-3]
