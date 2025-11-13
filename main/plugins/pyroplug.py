@@ -72,9 +72,13 @@ async def get_msg(userbot, client, bot, sender, edit_id, msg_link, i):
             if msg.media==MessageMediaType.VIDEO_NOTE:
                 round_message = True
                 print("Trying to get metadata")
-                data = video_metadata(file)
-                height, width, duration = data["height"], data["width"], data["duration"]
-                print(f'd: {duration}, w: {width}, h:{height}')
+                try:
+                    data = video_metadata(file)
+                    height, width, duration = data.get("height", 90), data.get("width", 90), data.get("duration", 0)
+                    print(f'd: {duration}, w: {width}, h:{height}')
+                except Exception as e:
+                    print(f"Failed to get video metadata: {e}")
+                    height, width, duration = 90, 90, 0
                 try:
                     thumb_path = await screenshot(file, duration, sender)
                 except Exception as e:
@@ -98,9 +102,13 @@ async def get_msg(userbot, client, bot, sender, edit_id, msg_link, i):
                     clean_up(thumb_path)
             elif msg.media==MessageMediaType.VIDEO and msg.video.mime_type in ["video/mp4", "video/x-matroska"]:
                 print("Trying to get metadata")
-                data = video_metadata(file)
-                height, width, duration = data["height"], data["width"], data["duration"]
-                print(f'd: {duration}, w: {width}, h:{height}')
+                try:
+                    data = video_metadata(file)
+                    height, width, duration = data.get("height", 90), data.get("width", 90), data.get("duration", 0)
+                    print(f'd: {duration}, w: {width}, h:{height}')
+                except Exception as e:
+                    print(f"Failed to get video metadata: {e}")
+                    height, width, duration = 90, 90, 0
                 try:
                     thumb_path = await screenshot(file, duration, sender)
                 except Exception as e:

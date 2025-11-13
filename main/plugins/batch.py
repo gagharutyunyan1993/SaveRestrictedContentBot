@@ -28,6 +28,9 @@ batch = []
 
 @Drone.on(events.NewMessage(incoming=True, from_users=AUTH, pattern='/cancel'))
 async def cancel(event):
+    # Double-check sender is the authorized user
+    if AUTH and event.sender_id != AUTH:
+        return
     if not event.sender_id in batch:
         return await event.reply("No batch active.")
     batch.clear()
@@ -35,6 +38,9 @@ async def cancel(event):
     
 @Drone.on(events.NewMessage(incoming=True, from_users=AUTH, pattern='/batch'))
 async def _batch(event):
+    # Double-check sender is the authorized user
+    if AUTH and event.sender_id != AUTH:
+        return
     if not event.is_private:
         return
     s, r = await force_sub(event.client, fs, event.sender_id, ft) 
@@ -50,8 +56,12 @@ async def _batch(event):
                 link = await conv.get_reply()
                 try:
                     _link = get_link(link.text)
-                except Exception:
-                    await conv.send_message("No link found.")
+                    if not _link:
+                        await conv.send_message("No valid link found in your message.")
+                        return conv.cancel()
+                except Exception as e:
+                    print(f"Link extraction error: {e}")
+                    await conv.send_message("Failed to extract link from your message.")
                     return conv.cancel()
             except Exception as e:
                 print(e)
@@ -65,7 +75,13 @@ async def _batch(event):
                 await conv.send_message("Cannot wait more longer for your response!")
                 return conv.cancel()
             try:
+                if not _range.text:
+                    await conv.send_message("Please send a number!")
+                    return conv.cancel()
                 value = int(_range.text)
+                if value <= 0:
+                    await conv.send_message("Range must be a positive number!")
+                    return conv.cancel()
                 if value > 100:
                     await conv.send_message("You can only get upto 100 files in a single batch.")
                     return conv.cancel()
