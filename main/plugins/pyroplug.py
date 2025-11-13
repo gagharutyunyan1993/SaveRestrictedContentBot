@@ -4,7 +4,7 @@ import asyncio, time, os
 
 from .. import bot as Drone
 from main.plugins.progress import progress_for_pyrogram
-from main.plugins.helpers import screenshot
+from main.plugins.helpers import screenshot, clean_up
 
 from pyrogram import Client, filters
 from pyrogram.errors import ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid, PeerIdInvalid
@@ -33,7 +33,7 @@ async def get_msg(userbot, client, bot, sender, edit_id, msg_link, i):
         msg_link = msg_link.split("?single")[0]
     msg_id = int(msg_link.split("/")[-1]) + int(i)
     height, width, duration, thumb_path = 90, 90, 0, None
-    if 't.me/c/' or 't.me/b/' in msg_link:
+    if 't.me/c/' in msg_link or 't.me/b/' in msg_link:
         if 't.me/b/' in msg_link:
             chat = str(msg_link.split("/")[-2])
         else:
@@ -72,12 +72,17 @@ async def get_msg(userbot, client, bot, sender, edit_id, msg_link, i):
             if msg.media==MessageMediaType.VIDEO_NOTE:
                 round_message = True
                 print("Trying to get metadata")
-                data = video_metadata(file)
-                height, width, duration = data["height"], data["width"], data["duration"]
-                print(f'd: {duration}, w: {width}, h:{height}')
+                try:
+                    data = video_metadata(file)
+                    height, width, duration = data.get("height", 90), data.get("width", 90), data.get("duration", 0)
+                    print(f'd: {duration}, w: {width}, h:{height}')
+                except Exception as e:
+                    print(f"Failed to get video metadata: {e}")
+                    height, width, duration = 90, 90, 0
                 try:
                     thumb_path = await screenshot(file, duration, sender)
-                except Exception:
+                except Exception as e:
+                    print(f"Screenshot failed: {e}")
                     thumb_path = None
                 await client.send_video_note(
                     chat_id=sender,
@@ -92,14 +97,22 @@ async def get_msg(userbot, client, bot, sender, edit_id, msg_link, i):
                         time.time()
                     )
                 )
+                # Clean up temporary screenshot if not custom thumbnail
+                if thumb_path and not thumb_path.endswith(f'{sender}.jpg'):
+                    clean_up(thumb_path)
             elif msg.media==MessageMediaType.VIDEO and msg.video.mime_type in ["video/mp4", "video/x-matroska"]:
                 print("Trying to get metadata")
-                data = video_metadata(file)
-                height, width, duration = data["height"], data["width"], data["duration"]
-                print(f'd: {duration}, w: {width}, h:{height}')
+                try:
+                    data = video_metadata(file)
+                    height, width, duration = data.get("height", 90), data.get("width", 90), data.get("duration", 0)
+                    print(f'd: {duration}, w: {width}, h:{height}')
+                except Exception as e:
+                    print(f"Failed to get video metadata: {e}")
+                    height, width, duration = 90, 90, 0
                 try:
                     thumb_path = await screenshot(file, duration, sender)
-                except Exception:
+                except Exception as e:
+                    print(f"Screenshot failed: {e}")
                     thumb_path = None
                 await client.send_video(
                     chat_id=sender,
@@ -116,6 +129,9 @@ async def get_msg(userbot, client, bot, sender, edit_id, msg_link, i):
                         time.time()
                     )
                 )
+                # Clean up temporary screenshot if not custom thumbnail
+                if thumb_path and not thumb_path.endswith(f'{sender}.jpg'):
+                    clean_up(thumb_path)
 
             elif msg.media==MessageMediaType.PHOTO:
                 await edit.edit("Uploading photo.")
@@ -142,8 +158,14 @@ async def get_msg(userbot, client, bot, sender, edit_id, msg_link, i):
             except Exception:
                 pass
             await edit.delete()
-        except (ChannelBanned, ChannelInvalid, ChannelPrivate, ChatIdInvalid, ChatInvalid):
-            await client.edit_message_text(sender, edit_id, "Have you joined the channel?")
+        except ChannelBanned:
+            await client.edit_message_text(sender, edit_id, "❌ **Error:** The userbot account is banned from this channel.\n\nPlease unban the account or use a different account.")
+            return
+        except (ChannelInvalid, ChatIdInvalid, ChatInvalid):
+            await client.edit_message_text(sender, edit_id, "❌ **Error:** Invalid channel or chat ID.\n\nPlease check the link and try again.")
+            return
+        except ChannelPrivate:
+            await client.edit_message_text(sender, edit_id, "❌ **Error:** This is a private channel.\n\n**Solution:**\n• Make sure the userbot account has joined this channel\n• Check if the channel link is correct\n• Verify that the SESSION is valid")
             return
         except PeerIdInvalid:
             chat = msg_link.split("/")[-3]
@@ -160,8 +182,8 @@ async def get_msg(userbot, client, bot, sender, edit_id, msg_link, i):
             or "SendMediaRequest" in str(e) \
             or str(e) == "File size equals to 0 B":
                 try:
+                    UT = time.time()
                     if msg.media==MessageMediaType.VIDEO and msg.video.mime_type in ["video/mp4", "video/x-matroska"]:
-                        UT = time.time()
                         uploader = await fast_upload(f'{file}', f'{file}', UT, bot, edit, '**UPLOADING:**')
                         attributes = [DocumentAttributeVideo(duration=duration, w=width, h=height, round_message=round_message, supports_streaming=True)]
                         await bot.send_file(sender, uploader, caption=caption, thumb=thumb_path, attributes=attributes, force_document=False)
@@ -170,16 +192,20 @@ async def get_msg(userbot, client, bot, sender, edit_id, msg_link, i):
                         attributes = [DocumentAttributeVideo(duration=duration, w=width, h=height, round_message=round_message, supports_streaming=True)]
                         await bot.send_file(sender, uploader, caption=caption, thumb=thumb_path, attributes=attributes, force_document=False)
                     else:
-                        UT = time.time()
                         uploader = await fast_upload(f'{file}', f'{file}', UT, bot, edit, '**UPLOADING:**')
                         await bot.send_file(sender, uploader, caption=caption, thumb=thumb_path, force_document=True)
-                    if os.path.isfile(file) == True:
+                    # Clean up files after successful upload
+                    if os.path.isfile(file):
                         os.remove(file)
+                    if thumb_path and not thumb_path.endswith(f'{sender}.jpg'):
+                        clean_up(thumb_path)
                 except Exception as e:
                     print(e)
                     await client.edit_message_text(sender, edit_id, f'Failed to save: `{msg_link}`\n\nError: {str(e)}')
                     try:
                         os.remove(file)
+                        if thumb_path and not thumb_path.endswith(f'{sender}.jpg'):
+                            clean_up(thumb_path)
                     except Exception:
                         return
                     return
@@ -187,13 +213,18 @@ async def get_msg(userbot, client, bot, sender, edit_id, msg_link, i):
                 await client.edit_message_text(sender, edit_id, f'Failed to save: `{msg_link}`\n\nError: {str(e)}')
                 try:
                     os.remove(file)
+                    if thumb_path and not thumb_path.endswith(f'{sender}.jpg'):
+                        clean_up(thumb_path)
                 except Exception:
                     return
                 return
         try:
             os.remove(file)
-            if os.path.isfile(file) == True:
+            if os.path.isfile(file):
                 os.remove(file)
+            # Clean up temporary screenshot
+            if thumb_path and not thumb_path.endswith(f'{sender}.jpg'):
+                clean_up(thumb_path)
         except Exception:
             pass
         await edit.delete()

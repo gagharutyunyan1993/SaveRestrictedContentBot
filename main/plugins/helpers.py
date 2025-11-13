@@ -45,29 +45,66 @@ def hhmmss(seconds):
     return x
 
 async def screenshot(video, duration, sender):
+    """Generate a screenshot from video at the middle timestamp.
+
+    Args:
+        video: Path to the video file
+        duration: Duration of the video in seconds
+        sender: User ID (used for custom thumbnail check)
+
+    Returns:
+        Path to the generated screenshot or None if failed
+    """
+    # Check if user has uploaded a custom thumbnail
     if os.path.exists(f'{sender}.jpg'):
         return f'{sender}.jpg'
+
     time_stamp = hhmmss(int(duration)/2)
-    out = dt.now().isoformat("_", "seconds") + ".jpg"
-    cmd = ["ffmpeg",
-           "-ss",
-           f"{time_stamp}", 
-           "-i",
-           f"{video}",
-           "-frames:v",
-           "1", 
-           f"{out}",
-           "-y"
-          ]
-    process = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE
-    )
-    stdout, stderr = await process.communicate()
-    x = stderr.decode().strip()
-    y = stdout.decode().strip()
-    if os.path.isfile(out):
-        return out
-    else:
-        None
+    out = f"screenshot_{sender}_{dt.now().strftime('%Y%m%d_%H%M%S')}.jpg"
+
+    cmd = [
+        "ffmpeg",
+        "-ss", f"{time_stamp}",
+        "-i", f"{video}",
+        "-frames:v", "1",
+        "-vf", "scale=320:-1",  # Scale to reasonable thumbnail size
+        f"{out}",
+        "-y"
+    ]
+
+    try:
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        stdout, stderr = await process.communicate()
+
+        if process.returncode != 0:
+            print(f"FFmpeg error: {stderr.decode().strip()}")
+            return None
+
+        if os.path.isfile(out):
+            return out
+        else:
+            return None
+    except Exception as e:
+        print(f"Screenshot generation failed: {str(e)}")
+        return None
+
+def clean_up(file_paths):
+    """Clean up temporary files.
+
+    Args:
+        file_paths: Single path string or list of paths to remove
+    """
+    if isinstance(file_paths, str):
+        file_paths = [file_paths]
+
+    for file_path in file_paths:
+        if file_path and os.path.isfile(file_path):
+            try:
+                os.remove(file_path)
+                print(f"Cleaned up: {file_path}")
+            except Exception as e:
+                print(f"Could not remove {file_path}: {str(e)}")

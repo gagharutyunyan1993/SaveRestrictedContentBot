@@ -19,6 +19,10 @@ async def progress_for_pyrogram(
     now = time.time()
     diff = now - start
     if round(diff % 10.00) == 0 or current == total:
+        # Prevent division by zero
+        if total == 0:
+            return
+
         percentage = current * 100 / total
         status = DOWNLOAD_LOCATION + "/status.json"
         if os.path.exists(status):
@@ -26,9 +30,20 @@ async def progress_for_pyrogram(
                 statusMsg = json.load(f)
                 if not statusMsg["running"]:
                     bot.stop_transmission()
+
+        # Prevent division by zero for speed calculation
+        if diff == 0:
+            return
+
         speed = current / diff
         elapsed_time = round(diff) * 1000
-        time_to_completion = round((total - current) / speed) * 1000
+
+        # Prevent division by zero for time calculation
+        if speed == 0:
+            time_to_completion = 0
+        else:
+            time_to_completion = round((total - current) / speed) * 1000
+
         estimated_total_time = elapsed_time + time_to_completion
 
         elapsed_time = TimeFormatter(milliseconds=elapsed_time)
